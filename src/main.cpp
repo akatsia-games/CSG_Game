@@ -1,44 +1,181 @@
 #include <iostream>
 #include <Point3f.hpp>
-
+#include <ctime>
+#include <thread>
 
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
  
-#include "linmath.h"
+#include <linmath.h>
  
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <vector>
+#include <bitset>
+#include <chrono>
+
+double getSeconds(){
+    auto time = std::chrono::system_clock::now().time_since_epoch();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
+    return millis/1000.0;
+}
 
 int width = 640;
 int height = 480;
 
-Vector3f look_direction = {1,0,0};
-
-Vector3f x_dir = {1,0,0};
-Vector3f y_dir = {0,1,0};
-Vector3f z_dir = {0,0,1};
+float ratio = width/height;
 
 float multiplier = M_PI/height;
 
+Vector3f position{0,0,3};
+
+double horAngle(0),verAngle(0);
+double lastPositionCallback = 0;
+
+mat4x4 mvp;
+
+void calculateMatrix(){
+    mat4x4 T,R,P ,h, v, id, TR;
+
+    mat4x4_translate(T,
+        -position.x,
+        -position.y,
+        -position.z);
+
+    mat4x4_identity(id);
+
+    mat4x4_rotate_Y(h,id,-horAngle);
+    mat4x4_rotate_X(v,id,-verAngle);
+    
+    //full rotational matrix
+    mat4x4_mul(R,v,h);
+    
+    //mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
+    mat4x4_perspective(P,1,ratio,1e-5,1e5);
+
+    mat4x4_mul(TR, R, T);
+    
+    mat4x4_mul(mvp, P, TR);
+}
+
+bool ignoreInputs;
+
+double xlast,ylast;
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    double xdiff = xpos - (width/2);
-    double ydiff = ypos - (height/2);
+    if(ignoreInputs) return;
+    double curr_time = getSeconds();
 
-    double yangle = y_dir.angle(look_direction);
-    Vector3f right; right.cross(look_direction,y_dir);
+    double elapsed_time = curr_time-lastPositionCallback;
+    lastPositionCallback = curr_time;
 
-    yangle += ydiff*multiplier;
-    yangle = std::min(std::max(yangle,M_PI/16), M_PI*15.0/16) - yangle;
+    double xdiff = xlast - xpos;
+    double ydiff = ylast - ypos;
 
-    look_direction.rotate(right, yangle);
-    look_direction.rotate(y_dir, xdiff*multiplier);
+    xlast = xpos;
+    ylast = ypos;
+
+    if(std::abs(elapsed_time)>1) return;
+
+    verAngle += ydiff*multiplier;
+    verAngle = std::min(std::max(verAngle,-7.0 * M_PI/16), M_PI*7.0/16);
+
+    horAngle = std::fmod(horAngle+(xdiff*multiplier),(M_PI*2));
 }
  
+std::bitset<6> mv_keys;
+
+void window_focus_callback(GLFWwindow* window, int focused)
+{
+    if (focused)
+    {
+        mv_keys.reset();
+        ignoreInputs = false;
+    }
+    else
+    {
+        ignoreInputs = true;
+    }
+}
+
+
+
+enum Key{
+    UP = 0,
+    DOWN,
+    LEFT,
+    RIGHT,
+    FORWARD,
+    BACK
+};
+
+static void calculatePosition(double dt){
+    if(ignoreInputs) return;
+    int up(0), right(0), back(0);
+
+    up +=  mv_keys[Key::UP];
+    up -=  mv_keys[Key::DOWN];
+    right+=mv_keys[Key::RIGHT];
+    right-=mv_keys[Key::LEFT];
+    back -= mv_keys[Key::FORWARD];
+    back += mv_keys[Key::BACK];
+
+    if(up == 0 && right == 0 && back == 0) return;
+
+    Vector3f direction{(float)right,(float)up,(float)back};
+    direction.normalize();
+
+    vec4 look_dir{direction.x,direction.y,direction.z,0};
+    vec4 look_dir_cpy{direction.x,(float)up,direction.z,0};
+
+    mat4x4 h, id;
+    mat4x4_identity(id);
+
+    mat4x4_rotate_Y(h,id,horAngle);
+
+    mat4x4_mul_vec4(look_dir, h, look_dir_cpy);
+
+    direction = {look_dir[0],look_dir[1],look_dir[2]};
+    direction*= dt;
+
+    position += direction;
+}
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (!(action==GLFW_PRESS || action == GLFW_RELEASE))
+        return;
+    switch (key)
+    {
+    case GLFW_KEY_ESCAPE:
+        if (action == GLFW_PRESS)
+            glfwSetWindowShouldClose(window, GLFW_TRUE);       
+    case GLFW_KEY_UP:
+        mv_keys[Key::UP] = (action == GLFW_PRESS);
+        break;
+    case GLFW_KEY_DOWN:
+        mv_keys[Key::DOWN] = (action == GLFW_PRESS);
+        break;
+    case GLFW_KEY_D:
+        mv_keys[Key::RIGHT] = (action == GLFW_PRESS);
+        break;
+    case GLFW_KEY_A:
+        mv_keys[Key::LEFT] = (action == GLFW_PRESS);
+        break;
+    case GLFW_KEY_W:
+        mv_keys[Key::FORWARD] = (action == GLFW_PRESS);
+        break;
+    case GLFW_KEY_S:
+        mv_keys[Key::BACK] = (action == GLFW_PRESS);
+        break;
+    default:
+        break;
+    }
+}
+
 typedef struct Vertex
 {
     Vector3f pos;
@@ -56,11 +193,11 @@ static const char* vertex_shader_text =
 "#version 330\n"
 "uniform mat4 MVP;\n"
 "in vec3 vCol;\n"
-"in vec2 vPos;\n"
+"in vec3 vPos;\n"
 "out vec3 color;\n"
 "void main()\n"
 "{\n"
-"    gl_Position = MVP * vec4(vPos, 0.0, 1.0);\n"
+"    gl_Position = MVP * vec4(vPos, 1.0);\n"
 "    color = vCol;\n"
 "}\n";
  
@@ -78,11 +215,6 @@ static void error_callback(int error, const char* description)
     fprintf(stderr, "Error: %s\n", description);
 }
  
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
  
 int main(void)
 {
@@ -101,9 +233,11 @@ int main(void)
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
-    
+
+    calculateMatrix();
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetWindowFocusCallback(window, window_focus_callback);
  
     glfwSetKeyCallback(window, key_callback);
  
@@ -138,27 +272,36 @@ int main(void)
     GLuint vertex_array;
     glGenVertexArrays(1, &vertex_array);
     glBindVertexArray(vertex_array);
+
     glEnableVertexAttribArray(vpos_location);
     glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE,
                           sizeof(Vertex), (void*) offsetof(Vertex, pos));
+
     glEnableVertexAttribArray(vcol_location);
     glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE,
                           sizeof(Vertex), (void*) offsetof(Vertex, col));
  
+
+    glfwGetFramebufferSize(window, &width, &height);
+    calculateMatrix();
+
+    double curr, past;
+    curr = getSeconds();
+
     while (!glfwWindowShouldClose(window))
     {
-        int width, height;
+        past = curr;
+        curr = getSeconds();
+        double dt = curr-past;
+
+        calculatePosition(dt);
+        calculateMatrix();
+
         glfwGetFramebufferSize(window, &width, &height);
-        const float ratio = width / (float) height;
+        ratio = width / (float) height;
  
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
- 
-        mat4x4 m, p, mvp;
-        mat4x4_identity(m);
-        mat4x4_rotate_Z(m, m, (float) glfwGetTime());
-        mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
-        mat4x4_mul(mvp, p, m);
  
         glUseProgram(program);
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) &mvp);
