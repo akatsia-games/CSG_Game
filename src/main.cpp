@@ -17,6 +17,13 @@
 #include <bitset>
 #include <chrono>
 
+
+#include "PlayerController.hpp"
+#include "GLWrappers.hpp"
+#include "GLProgram.hpp"
+#include "VAO.hpp"
+
+
 double getSeconds(){
     auto time = std::chrono::system_clock::now().time_since_epoch();
     auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(time).count();
@@ -218,6 +225,13 @@ static void error_callback(int error, const char* description)
  
 int main(void)
 {
+    //startupOpengl();
+    //GLFWwindow* window = createWidnow();
+    //PlayerController::initialize(window);
+    //finishOpenglSetup(window);
+
+
+
     glfwSetErrorCallback(error_callback);
  
     if (!glfwInit())
@@ -246,6 +260,9 @@ int main(void)
     glfwSwapInterval(1);
  
     // NOTE: OpenGL error checks have been omitted for brevity
+    //GLProgram program("vertex_source","fragment_source");
+    //VAO vao(vertices, program["vPos"], program["vCol"]);
+    //const GLint mvp_location = program["MVP"];
  
     GLuint vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
@@ -274,7 +291,7 @@ int main(void)
     glBindVertexArray(vertex_array);
 
     glEnableVertexAttribArray(vpos_location);
-    glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE,
+    glVertexAttribPointer(vpos_location, 3, GL_FLOAT, GL_FALSE,
                           sizeof(Vertex), (void*) offsetof(Vertex, pos));
 
     glEnableVertexAttribArray(vcol_location);
@@ -294,6 +311,8 @@ int main(void)
         curr = getSeconds();
         double dt = curr-past;
 
+        //PlayerController::update(dt);
+
         calculatePosition(dt);
         calculateMatrix();
 
@@ -302,7 +321,11 @@ int main(void)
  
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT);
- 
+
+        //program.use();
+        //glUniformMatrix4fv(mvp_location, 1, GL_FALSE, PlayerController::mvp());
+        //vao.draw();
+         
         glUseProgram(program);
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) &mvp);
         glBindVertexArray(vertex_array);
