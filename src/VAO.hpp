@@ -9,7 +9,8 @@ public:
     VAO(std::vector<Vertex>& vertices, GLint vpos, GLint vcol);
     ~VAO();
 
+    void draw();
 private:
-    GLuint* vao;
-    GLuint* vbo;
+    GLuint vao;
+    GLuint vbo;
 };

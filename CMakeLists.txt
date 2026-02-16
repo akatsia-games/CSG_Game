@@ -9,6 +9,7 @@ foreach(item ${V_GLOB})
 	endif()
 endforeach()
 
-add_executable(Game src/main.cpp)
+file(GLOB V_GLOB LIST_DIRECTORIES true "src/*.cpp")
+add_executable(Game ${V_GLOB})
 
 target_link_libraries(Game glfw UnBBoolean GLAD Linmath)
