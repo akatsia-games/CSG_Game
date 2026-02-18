@@ -9,8 +9,8 @@ GLFWwindow* createWidnow();
 
 void finishOpenglSetup(GLFWwindow*);
 
-typedef struct Vertex
+typedef struct GLVertex
 {
     Vector3f pos;
     Colour3f col;
-} Vertex;
+} GLVertex;

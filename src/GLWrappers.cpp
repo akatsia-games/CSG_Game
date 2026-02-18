@@ -26,6 +26,8 @@ void startupOpengl()
 
 GLFWwindow* createWidnow()
 {
+    glfwWindowHint(GLFW_DEPTH_BITS,24);
+    glfwWindowHint(GLFW_SAMPLES, 4);
     GLFWwindow* window = glfwCreateWindow(640, 480, "OpenGL Triangle", NULL, NULL);
     if (!window)
     {

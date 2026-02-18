@@ -32,10 +32,10 @@ double getSeconds(){
 
 void PlayerController::initialize(GLFWwindow* window)
 {
-    position = {0,0,3};
+    position = {8,2,8};
 
-    horAngle = 0;
-    verAngle = 0;
+    horAngle = (M_PI/4);
+    verAngle = -(M_PI/8);
 
     ignoreInputs = false;
 
