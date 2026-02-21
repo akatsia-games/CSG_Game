@@ -7,25 +7,12 @@
 #include "GLWrappers.hpp"
 #include "GLProgram.hpp"
 #include "VAO.hpp"
+#include "World.hpp"
 
 #include <fstream>
 
 #include <Solid.hpp>
 #include <BooleanModeller.hpp>
-
-void getSolidVertices(const Solid& solid, std::vector<GLVertex>& vertices){
-    vertices.resize(0);
-    vertices.reserve(solid.getIndices().size());
-
-    auto& indices = solid.getIndices();
-    auto& colours = solid.getColors();
-    auto& verts = solid.getVertices();
-
-    for(auto index : indices){
-        GLVertex vert = {(Vector3f) verts[index],colours[index]};
-        vertices.push_back(vert);
-    }
-}
 
 std::ifstream solidFile("../resources/objects/cube.obj");
 Solid baseSolid(solidFile,{1,0,0});
@@ -37,34 +24,6 @@ VAO* active_vao(nullptr);
 
 GLint vpos_location;
 GLint vcol_location;
-
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
-{
-    if ((button == GLFW_MOUSE_BUTTON_LEFT||button==GLFW_MOUSE_BUTTON_RIGHT) && action == GLFW_PRESS)
-    {
-        Solid placeableSolid(baseSolid);
-        for(Colour3f& col: placeableSolid.getColors()){
-            col = {0,1,1};
-        }
-        
-        placeableSolid.translate(4.5,-0.5,4.5);
-
-        BooleanModeller modeller(solidFloor, placeableSolid);
-        if(button == GLFW_MOUSE_BUTTON_LEFT){
-            solidFloor = modeller.getDifference();
-        }else{
-            solidFloor = modeller.getUnion();
-        }
-        
-
-        std::vector<GLVertex> vertices;
-        getSolidVertices(solidFloor, vertices);
-
-        delete active_vao;
-        active_vao = new VAO(vertices, vpos_location, vcol_location);
-    }
-        
-}
  
 int main(void)
 {
@@ -76,15 +35,19 @@ int main(void)
     GLFWwindow* window = createWidnow();
 
     PlayerController::initialize(window);
-    glfwSetMouseButtonCallback(window, mouse_button_callback);
  
     finishOpenglSetup(window);
  
     GLProgram program("../resources/shaders/vertex.glsl","../resources/shaders/fragment.glsl");
 
     const GLint mvp_location = glGetUniformLocation(program.pointer(), "MVP");
+    const GLint pos_location = glGetUniformLocation(program.pointer(), "oPos");
     vpos_location = glGetAttribLocation(program.pointer(), "vPos");
     vcol_location = glGetAttribLocation(program.pointer(), "vCol");
+
+    fprintf(stderr,"%d",pos_location);
+
+    World::setup(vpos_location,vcol_location,pos_location);
 
     std::vector<GLVertex> vertices;
     getSolidVertices(solidFloor, vertices);
@@ -94,7 +57,10 @@ int main(void)
     curr = getSeconds();
 
     glEnable(GL_CULL_FACE);
+
+    //Enable depth buffering
     glEnable(GL_DEPTH_TEST);
+    
     glEnable(GL_BLEND);
     glEnable(GL_MULTISAMPLE);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -106,6 +72,7 @@ int main(void)
         double dt = curr-past;
 
         PlayerController::update(dt);
+        World::update(dt);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -114,11 +81,14 @@ int main(void)
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, PlayerController::mvp());
-        active_vao->draw();
+        //active_vao->draw();
+        World::draw();
  
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    World::cleanup();
  
     glfwDestroyWindow(window);
  

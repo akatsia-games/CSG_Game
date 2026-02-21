@@ -5,7 +5,19 @@
 
 #include "GLWrappers.hpp"
 
+void getSolidVertices(const Solid& solid, std::vector<GLVertex>& vertices){
+    vertices.resize(0);
+    vertices.reserve(solid.getIndices().size());
 
+    auto& indices = solid.getIndices();
+    auto& colours = solid.getColors();
+    auto& verts = solid.getVertices();
+
+    for(auto index : indices){
+        GLVertex vert = {(Vector3f) verts[index],colours[index]};
+        vertices.push_back(vert);
+    }
+}
  
 static void error_callback(int error, const char* description)
 {

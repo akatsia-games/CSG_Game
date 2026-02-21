@@ -7,8 +7,27 @@
 #include "Point3f.hpp"
 #include <chrono>
 #include <iostream>
+#include "World.hpp"
+#include <algorithm>
+#include <fstream>
+
+Solid loadCube(Vector3f point, double width, double height, double y_angle = 0)
+{
+    std::ifstream cube_file("../resources/objects/cube.obj");
+    Solid cube(cube_file,{0.5,0.5,1});
+
+    cube.translate(-0.5,-0.5,-0.5);
+
+    cube.scale(width,height,width);
+    cube.rotate(0,y_angle);
+
+    cube.translate(point.x,point.y,point.z);
+
+    return cube;
+}
 
 Vector3f PlayerController::position({0,0,0});
+Vector3f PlayerController::velocity({0,0,0});
 
 double PlayerController::horAngle(0);
 double PlayerController::verAngle(0);
@@ -32,7 +51,7 @@ double getSeconds(){
 
 void PlayerController::initialize(GLFWwindow* window)
 {
-    position = {8,2,8};
+    position = {0,1+1e-2,0};
 
     horAngle = (M_PI/4);
     verAngle = -(M_PI/8);
@@ -45,6 +64,7 @@ void PlayerController::initialize(GLFWwindow* window)
     glfwSetInputMode(PlayerController::window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(PlayerController::window, cursor_position_callback);
     glfwSetWindowFocusCallback(PlayerController::window, window_focus_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
  
     glfwSetKeyCallback(PlayerController::window, key_callback);
 }
@@ -77,7 +97,7 @@ void PlayerController::calculateMatrix(){
     mat4x4_mul(R,v,h);
     
     //mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
-    mat4x4_perspective(P,1,ratio,1e-5,1e5);
+    mat4x4_perspective(P,1,ratio,1e-2,1e8);
 
     mat4x4_mul(TR, R, T);
     
@@ -121,6 +141,7 @@ void PlayerController::window_focus_callback(GLFWwindow* window, int focused)
 }
 
 void PlayerController::update(double dt){
+    //fprintf(stderr,"(%f, %f, %f)\n", position.x, position.y, position.z);
 
     glfwGetFramebufferSize(window, &width, &height);
     ratio = width / (float) height;
@@ -132,26 +153,28 @@ void PlayerController::update(double dt){
         calculateMatrix();
         return;
     }
-    int up(0), right(0), back(0);
+    int right(0), back(0);
 
-    up +=  mv_keys[Key::UP];
-    up -=  mv_keys[Key::DOWN];
     right+=mv_keys[Key::RIGHT];
     right-=mv_keys[Key::LEFT];
     back -= mv_keys[Key::FORWARD];
     back += mv_keys[Key::BACK];
 
-    if(up == 0 && right == 0 && back == 0)
+    velocity *= std::pow(0.25,dt);
+    
+    if(!mv_keys[SPACE] && right == 0 && back == 0 && velocity.length()<1e-5 && isOnGround())
     {
         calculateMatrix();
         return;
     }
 
-    Vector3f direction{(float)right,(float)up,(float)back};
-    direction.normalize();
+    Vector3f direction{(float)right, 0,(float)back};
+    if(direction.length()>1e-5){
+        direction.normalize();
+    }
 
-    vec4 look_dir{direction.x,direction.y,direction.z,0};
-    vec4 look_dir_cpy{direction.x,(float)up,direction.z,0};
+    vec4 look_dir{direction.x, 0, direction.z, 0};
+    vec4 look_dir_cpy{direction.x, 0, direction.z, 0};
 
     mat4x4 h, id;
     mat4x4_identity(id);
@@ -161,11 +184,52 @@ void PlayerController::update(double dt){
     mat4x4_mul_vec4(look_dir, h, look_dir_cpy);
 
     direction = {look_dir[0],look_dir[1],look_dir[2]};
-    direction*= dt;
 
-    PlayerController::position += direction;
+    velocity += direction*4*dt;
+
+    if(isOnGround())
+    {
+        velocity.y = std::max(0.0f,velocity.y);
+        if(mv_keys[SPACE])
+            velocity.y += 9.8;
+    }else{
+        velocity.y -= 9.8 * dt;
+    }
+
+    float last_y = position.y;
+    PlayerController::position += velocity*dt;
+
+    Solid object = loadCube(position+Vector3f({0,-0.6,0}), 0.3,1.8);
+
+    Solid intersection;// = World::collide(object);
+
+    if(intersection.isEmpty()){
+        calculateMatrix();
+        return;
+    }
+    
+    float heighest_point = 1.0;
+    for(auto point: intersection.getVertices()){
+        if(point.y>heighest_point) heighest_point = point.y;
+    }
+
+    position.y = std::max( std::min(heighest_point, last_y), position.y);
+    velocity.y = 0;
 
     calculateMatrix();
+}
+
+bool PlayerController::isOnGround(){
+    return position.y<(1 + 1.5 + 1e-5);
+
+    Solid object = loadCube(position-Vector3f({0,-1e-5 - 0.6,0}), 0.3,1.8);  
+    object = World::collide(object);
+    
+    return !object.isEmpty();
+}
+
+Point3f PlayerController::getPosition(){
+    return (Point3f)position;
 }
 
 void PlayerController::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -177,11 +241,12 @@ void PlayerController::key_callback(GLFWwindow* window, int key, int scancode, i
     case GLFW_KEY_ESCAPE:
         if (action == GLFW_PRESS)
             glfwSetWindowShouldClose(window, GLFW_TRUE);       
-    case GLFW_KEY_UP:
-        mv_keys[Key::UP] = (action == GLFW_PRESS);
+    case GLFW_KEY_SPACE:
+        mv_keys[Key::SPACE] = (action == GLFW_PRESS);
         break;
-    case GLFW_KEY_DOWN:
-        mv_keys[Key::DOWN] = (action == GLFW_PRESS);
+    case GLFW_KEY_LEFT_CONTROL:
+    case GLFW_KEY_RIGHT_CONTROL:
+        mv_keys[Key::CONTROL] = (action == GLFW_PRESS);
         break;
     case GLFW_KEY_D:
         mv_keys[Key::RIGHT] = (action == GLFW_PRESS);
@@ -200,3 +265,24 @@ void PlayerController::key_callback(GLFWwindow* window, int key, int scancode, i
     }
 }
  
+void PlayerController::mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if ((button == GLFW_MOUSE_BUTTON_LEFT||button==GLFW_MOUSE_BUTTON_RIGHT) && action == GLFW_PRESS)
+    {
+        Vector3f look_dir = {0,0,-1};
+        look_dir.rotate({1,0,0}, -verAngle);
+        look_dir.rotate({0,1,0}, -horAngle);
+
+        Vector3f intersection = World::ray(position, look_dir);
+
+        //fprintf(stderr,"attempting to place/dig(%d) at: %s\n",(button==GLFW_MOUSE_BUTTON_RIGHT),intersection.toString().c_str());
+
+        if(intersection.isNAN()) return;
+        if((intersection-position).length() > 10) return;
+
+        Solid placeableSolid = loadCube(intersection, 1,1, PlayerController::horAngle);
+
+        World::edit(placeableSolid, button==GLFW_MOUSE_BUTTON_RIGHT);
+    }
+        
+}
