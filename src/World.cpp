@@ -38,7 +38,15 @@ void World::draw()
 {
     for(auto& chunk: chunks)
     {
-        chunk.second.draw();
+        auto key = chunk.first;
+        int x = std::get<0>(key);
+        int y = std::get<1>(key);
+        int z = std::get<2>(key);
+
+        if(center.distance(Vector3f({x*CHUNK_WIDTH,y*CHUNK_HEIGHT,z*CHUNK_WIDTH})) < RADIUS_VISUAL)
+        {
+            chunk.second.draw();
+        }
     }
 }
 
@@ -61,7 +69,7 @@ void World::loadUnloadChunks()
         int x = std::get<0>(key);
         int y = std::get<1>(key);
         int z = std::get<2>(key);
-        if(center.distance(Point3f(x*CHUNK_WIDTH,y*CHUNK_HEIGHT,z*CHUNK_WIDTH)) > RADIUS_LOAD)
+        if(center.distance(Vector3f({x*CHUNK_WIDTH,y*CHUNK_HEIGHT,z*CHUNK_WIDTH})) > RADIUS_LOAD)
         {
             deleteKeys.emplace_back(key);
         }
@@ -74,12 +82,16 @@ void World::loadUnloadChunks()
     const static int radiusWidth = ((RADIUS_LOAD-1)/CHUNK_WIDTH)+1;
     const static int radiusHeight = ((RADIUS_LOAD-1)/CHUNK_HEIGHT)+1;
 
+    int center_x = center.x/CHUNK_WIDTH;
+    int center_y = center.y/CHUNK_HEIGHT;
+    int center_z = center.z/CHUNK_WIDTH;
+
     for(int x = -radiusWidth; x<= radiusWidth; ++x){
         for(int y = -radiusHeight; y<= radiusHeight; ++y){
             for(int z = -radiusWidth; z<= radiusWidth; ++z){
-                if((center.distance(Point3f(x*CHUNK_WIDTH,y*CHUNK_HEIGHT,z*CHUNK_WIDTH)) < RADIUS_LOAD) && chunks.find({x,y,z}) == chunks.end())
+                if((center.distance(Vector3f({x*CHUNK_WIDTH,y*CHUNK_HEIGHT,z*CHUNK_WIDTH}) + (Vector3f)center) < RADIUS_LOAD) && chunks.find({x,y,z}) == chunks.end())
                 {
-                    chunks.try_emplace({x,y,z},x,y,z,vpos,vcol,offset);
+                    chunks.try_emplace({x+center_x, y+center_y, z+center_z},x+center_x, y+center_y, z+center_z, vpos, vcol, offset);
                 }
             }
         }
@@ -92,22 +104,22 @@ double World::edit(Solid& solid, bool place){
 
     double rval = 0;
     
+    int center_x = (point.x/CHUNK_WIDTH);
+    int center_y = (point.y/CHUNK_WIDTH);
+    int center_z = (point.z/CHUNK_WIDTH);
     
-    for(int x = (point.x/CHUNK_WIDTH)-1; x<= (point.x/CHUNK_WIDTH)+1; ++x)
-        for(int y = (point.y/CHUNK_HEIGHT)-1; y<= (point.y/CHUNK_HEIGHT)+1; ++y)
-            for(int z = (point.z/CHUNK_WIDTH)-1; z<= (point.z/CHUNK_WIDTH)+1; ++z){
+    for(int x = center_x-1; x<= (center_x+1); ++x)
+        for(int y = center_y-1; y<= (center_y+1); ++y)
+            for(int z = center_z-1; z<= (center_z+1); ++z){
                 auto chunk = getChunk(x,y,z);
                 if(chunk == nullptr) continue;
-                
-                Solid cpy(solid);
-                cpy.translate(-x*CHUNK_WIDTH,-y*CHUNK_HEIGHT,-z*CHUNK_WIDTH);
 
                 Bound chunkBound(chunk->getBound());
                 if(objectBound.overlap(chunkBound)){
                     if(place){
-                        rval += chunk->place(cpy);
+                        rval += chunk->place(solid);
                     }else{
-                        rval += chunk->dig(cpy);
+                        rval += chunk->dig(solid);
                     }
                 }
             }
@@ -118,12 +130,16 @@ double World::edit(Solid& solid, bool place){
 Vector3f World::ray(Vector3f position, Vector3f direction){
     Vector3f closestPoint = {NAN,NAN,NAN};
     double closestDist = INFINITY;
-
-    for(int x = (position.x/CHUNK_WIDTH)-1; x< (position.x/CHUNK_WIDTH)+1; ++x)
-        for(int y = (position.y/CHUNK_HEIGHT)-1; y< (position.y/CHUNK_HEIGHT)+1; ++y)
-            for(int z = (position.z/CHUNK_WIDTH)-1; z< (position.z/CHUNK_WIDTH)+1; ++z){
+    int center_x = (position.x/CHUNK_WIDTH);
+    int center_y = (position.y/CHUNK_WIDTH);
+    int center_z = (position.z/CHUNK_WIDTH);
+    
+    for(int x = center_x-1; x<= (center_x+1); ++x)
+        for(int y = center_y-1; y<= (center_y+1); ++y)
+            for(int z = center_z-1; z<= (center_z+1); ++z){
                 auto chunk = getChunk(x,y,z);
                 if(chunk == nullptr) continue;
+                //fprintf(stderr,"x: %d,y: %d,z: %d",x,y,z);
                 
                 Vector3f curr_point = chunk->ray(position,direction);
                 if(!curr_point.isNAN() && (position-curr_point).length()<closestDist){
@@ -141,19 +157,20 @@ Solid World::collide(Solid& object){
     Bound objectBound(object.getVertices());
 
     Solid current_intersection;
+    int center_x = (point.x/CHUNK_WIDTH);
+    int center_y = (point.y/CHUNK_WIDTH);
+    int center_z = (point.z/CHUNK_WIDTH);
     
-    for(int x = (point.x/CHUNK_WIDTH)-1; x< (point.x/CHUNK_WIDTH)+1; ++x)
-        for(int y = (point.y/CHUNK_HEIGHT)-1; y< (point.y/CHUNK_HEIGHT)+1; ++y)
-            for(int z = (point.z/CHUNK_WIDTH)-1; z< (point.z/CHUNK_WIDTH)+1; ++z){
+    for(int x = center_x-1; x<= (center_x+1); ++x)
+        for(int y = center_y-1; y<= (center_y+1); ++y)
+            for(int z = center_z-1; z<= (center_z+1); ++z){
                 auto chunk = getChunk(x,y,z);
                 if(chunk == nullptr) continue;
-                Solid cpy(object);
-                cpy.translate(-x*CHUNK_WIDTH,-x*CHUNK_HEIGHT,-x*CHUNK_WIDTH);
                 
                 Bound chunkBound(chunk->getBound());
                 if(objectBound.overlap(chunkBound)){
 
-                    BooleanModeller modeller(current_intersection,chunk->collides(cpy));
+                    BooleanModeller modeller(current_intersection,chunk->collides(object));
                     current_intersection = modeller.getUnion();
                 }
             }

@@ -11,10 +11,10 @@ public:
     Chunk(int x, int y, int z, GLint vpos_location, GLint vcol_location, GLint offset_location);
     ~Chunk();
 
-    double dig(Solid& other);
-    double place(Solid& other);
+    double dig(Solid other);
+    double place(Solid other);
 
-    Solid collides(Solid& other);
+    Solid collides(Solid other);
     Bound getBound();
 
     Vector3f ray(Vector3f position, Vector3f direction);

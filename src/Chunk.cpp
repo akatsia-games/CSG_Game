@@ -27,11 +27,6 @@ Chunk::Chunk(int x, int y, int z, GLint vpos_location, GLint vcol_location, GLin
     colour+=(Vector3f({1.1,1.1,1.1}));
     colour.normalize();
 
-    if(x==y && y==z && x==0)
-    {
-        fprintf(stderr,"\n(%f,%f,%f)\n",colour.x,colour.y,colour.z);
-    }
-
     boundingBox = Solid(solidFile,{colour.x, colour.y, colour.z});
     boundingBox.translate(-0.5,-0.5,-0.5);
 
@@ -73,15 +68,17 @@ void Chunk::draw()
     //fprintf(stderr,"draw object at (%f,%f,%f)",)
 }
 
-Solid Chunk::collides(Solid& other)
+Solid Chunk::collides(Solid other)
 {
+    other.translate(-x*CHUNK_WIDTH, -y*CHUNK_HEIGHT, -z*CHUNK_WIDTH);
     BooleanModeller colliderCheck(this->ground, other);
     return colliderCheck.getIntersection();
 }
 
 
-double Chunk::dig(Solid& other)
+double Chunk::dig(Solid other)
 {
+    other.translate(-x*CHUNK_WIDTH, -y*CHUNK_HEIGHT, -z*CHUNK_WIDTH);
     BooleanModeller perimeter(boundingBox, other);
 
     BooleanModeller modeller(ground, perimeter.getIntersection());
@@ -92,8 +89,9 @@ double Chunk::dig(Solid& other)
     return modeller.getIntersection().getVolume();
 }
 
-double Chunk::place(Solid& other)
+double Chunk::place(Solid other)
 {
+    other.translate(-x*CHUNK_WIDTH, -y*CHUNK_HEIGHT, -z*CHUNK_WIDTH);
     BooleanModeller perimeter(boundingBox, other);
 
     BooleanModeller modeller(ground, perimeter.getIntersection());
@@ -108,7 +106,7 @@ Bound Chunk::getBound(){
     if(ground.isEmpty()){
         return Bound();
     }
-    return Bound(ground.getVertices());
+    return Bound(ground.getVertices()).translate(x*CHUNK_WIDTH, y*CHUNK_HEIGHT, z*CHUNK_WIDTH);
 }
 
 Vector3f Chunk::ray(Vector3f position, Vector3f direction){

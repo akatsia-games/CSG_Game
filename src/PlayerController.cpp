@@ -173,8 +173,8 @@ void PlayerController::update(double dt){
         direction.normalize();
     }
 
-    vec4 look_dir{direction.x, 0, direction.z, 0};
-    vec4 look_dir_cpy{direction.x, 0, direction.z, 0};
+    vec4 look_dir{(float)direction.x, 0, (float)direction.z, 0};
+    vec4 look_dir_cpy{(float)direction.x, 0, (float)direction.z, 0};
 
     mat4x4 h, id;
     mat4x4_identity(id);
@@ -185,18 +185,18 @@ void PlayerController::update(double dt){
 
     direction = {look_dir[0],look_dir[1],look_dir[2]};
 
-    velocity += direction*4*dt;
+    velocity += direction*8*dt;
 
     if(isOnGround())
     {
-        velocity.y = std::max(0.0f,velocity.y);
+        velocity.y = std::max(0.0,velocity.y);
         if(mv_keys[SPACE])
             velocity.y += 9.8;
     }else{
         velocity.y -= 9.8 * dt;
     }
 
-    float last_y = position.y;
+    double last_y = position.y;
     PlayerController::position += velocity*dt;
 
     Solid object = loadCube(position+Vector3f({0,-0.6,0}), 0.3,1.8);
@@ -208,7 +208,7 @@ void PlayerController::update(double dt){
         return;
     }
     
-    float heighest_point = 1.0;
+    double heighest_point = 1.0;
     for(auto point: intersection.getVertices()){
         if(point.y>heighest_point) heighest_point = point.y;
     }

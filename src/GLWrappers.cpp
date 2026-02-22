@@ -14,7 +14,7 @@ void getSolidVertices(const Solid& solid, std::vector<GLVertex>& vertices){
     auto& verts = solid.getVertices();
 
     for(auto index : indices){
-        GLVertex vert = {(Vector3f) verts[index],colours[index]};
+        GLVertex vert(verts[index],colours[index]);
         vertices.push_back(vert);
     }
 }

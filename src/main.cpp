@@ -78,7 +78,7 @@ int main(void)
 
         program.use();
 
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, PlayerController::mvp());
         //active_vao->draw();
