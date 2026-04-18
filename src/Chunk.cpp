@@ -9,6 +9,7 @@
 #include "Chunk.hpp"
 #include "GLWrappers.hpp"
 #include "VAO.hpp"
+#include <iostream>
 
 Chunk::Chunk(int x, int y, int z, GLint vpos_location, GLint vcol_location, GLint offset_location)
     :VertexObject(nullptr)
@@ -41,6 +42,72 @@ Chunk::Chunk(int x, int y, int z, GLint vpos_location, GLint vcol_location, GLin
 
 Chunk::~Chunk(){
     if(VertexObject != nullptr) delete VertexObject;
+}
+
+Chunk::Chunk(const Chunk& other):
+    x(other.x),
+    y(other.y),
+    z(other.z),
+    boundingBox(other.boundingBox),
+    ground(other.ground),
+    VertexObject(nullptr),
+    vpos(other.vpos),
+    vcol(other.vcol),
+    offset(other.offset)
+{
+    calculateVAO();
+}
+
+Chunk::Chunk(Chunk&& other):
+    x(other.x),
+    y(other.y),
+    z(other.z),
+    boundingBox(other.boundingBox),
+    ground(other.ground),
+    VertexObject(nullptr),
+    vpos(other.vpos),
+    vcol(other.vcol),
+    offset(other.offset)
+{
+    VertexObject = other.VertexObject;
+    other.VertexObject = nullptr;
+}
+
+Chunk& Chunk::operator=(const Chunk& other)
+{
+    x = other.x;
+    y = other.y;
+    z = other.z;
+    boundingBox = other.boundingBox;
+    ground = other.ground;
+    vpos = other.vpos;
+    vcol = other.vcol;
+    offset = other.offset;
+
+    calculateVAO();
+
+    return *this;
+}
+
+Chunk& Chunk::operator=(Chunk&& other)
+{
+    x = other.x;
+    y = other.y;
+    z = other.z;
+    boundingBox = other.boundingBox;
+    ground = other.ground;
+    vpos = other.vpos;
+    vcol = other.vcol;
+    offset = other.offset;
+
+    if(VertexObject != nullptr){
+        delete VertexObject;
+    }
+    
+    VertexObject = other.VertexObject;
+    other.VertexObject = nullptr;
+
+    return *this;
 }
 
 void Chunk::calculateVAO()
@@ -110,5 +177,11 @@ Bound Chunk::getBound(){
 }
 
 Vector3f Chunk::ray(Vector3f position, Vector3f direction){
-    return ground.intersectRay(position, direction);
+    position += {-x*CHUNK_WIDTH, -y*CHUNK_HEIGHT, -z*CHUNK_WIDTH};
+    
+    auto rval = ground.intersectRay(position, direction);
+    
+    rval     -= {-x*CHUNK_WIDTH, -y*CHUNK_HEIGHT, -z*CHUNK_WIDTH};
+    
+    return rval;
 }

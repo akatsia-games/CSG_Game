@@ -275,7 +275,7 @@ void PlayerController::mouse_button_callback(GLFWwindow* window, int button, int
 
         Vector3f intersection = World::ray(position, look_dir);
 
-        //fprintf(stderr,"attempting to place/dig(%d) at: %s\n",(button==GLFW_MOUSE_BUTTON_RIGHT),intersection.toString().c_str());
+        fprintf(stderr,"attempting to place/dig(%d) at: %s\n",(button==GLFW_MOUSE_BUTTON_RIGHT),intersection.toString().c_str());
 
         if(intersection.isNAN()) return;
         if((intersection-position).length() > 10) return;

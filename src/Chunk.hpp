@@ -11,6 +11,12 @@ public:
     Chunk(int x, int y, int z, GLint vpos_location, GLint vcol_location, GLint offset_location);
     ~Chunk();
 
+    Chunk(const Chunk& other);
+    Chunk(Chunk&& other);
+
+    Chunk& operator=(const Chunk& other);
+    Chunk& operator=(Chunk&& other);
+
     double dig(Solid other);
     double place(Solid other);
 

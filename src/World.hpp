@@ -29,6 +29,8 @@ private:
 
     static std::map<std::tuple<int,int,int>,Chunk> chunks;
 
+    /// RADIUS_VISUAL < RADIUS_LOAD < RADIUS_UNLOAD
+    constexpr static const float RADIUS_UNLOAD = 120;
     constexpr static const float RADIUS_LOAD = 100;
     constexpr static const float RADIUS_VISUAL = 80;
 
