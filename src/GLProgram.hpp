@@ -5,6 +5,7 @@ public:
     GLProgram(const char* const vertexShader, const char* const fragmentShader);
     
     GLint uniform(const GLchar* uniformId) const;
+    GLint attrib(const GLchar* attribId) const;
 
     GLuint pointer();
 

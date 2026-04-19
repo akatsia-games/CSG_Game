@@ -40,10 +40,10 @@ int main(void)
  
     GLProgram program("../resources/shaders/vertex.glsl","../resources/shaders/fragment.glsl");
 
-    const GLint mvp_location = glGetUniformLocation(program.pointer(), "MVP");
-    const GLint pos_location = glGetUniformLocation(program.pointer(), "oPos");
-    vpos_location = glGetAttribLocation(program.pointer(), "vPos");
-    vcol_location = glGetAttribLocation(program.pointer(), "vCol");
+    const GLint mvp_location = program.uniform("MVP");
+    const GLint pos_location = program.uniform("oPos");
+    vpos_location = program.attrib("vPos");
+    vcol_location = program.attrib("vCol");
 
     fprintf(stderr,"%d",pos_location);
 
@@ -81,7 +81,6 @@ int main(void)
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, PlayerController::mvp());
-        //active_vao->draw();
         World::draw();
  
         glfwSwapBuffers(window);

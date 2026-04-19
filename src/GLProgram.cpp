@@ -54,6 +54,11 @@ GLint GLProgram::uniform(const GLchar* uniformId)const
     return glGetUniformLocation(program, uniformId);
 }
 
+GLint GLProgram::attrib(const GLchar* attribId)const
+{
+    return glGetAttribLocation(program, attribId);
+}
+
 GLuint GLProgram::pointer()
 {
     return program;
